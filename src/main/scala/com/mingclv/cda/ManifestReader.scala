@@ -37,7 +37,7 @@ final class ManifestReader(s3: S3Client = S3Client.create()) {
     require(key.nonEmpty, "S3 URI must include an object key")
     s3.getObject(
       GetObjectRequest.builder().bucket(bucket).key(key).build(),
-      ResponseTransformer.toInputStream()
+      ResponseTransformer.toInputStream[software.amazon.awssdk.services.s3.model.GetObjectResponse]()
     )
   }
 
