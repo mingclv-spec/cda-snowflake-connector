@@ -4,12 +4,23 @@ import software.amazon.awssdk.services.s3.S3Client
 
 object Main {
   def main(args: Array[String]): Unit = {
-    val options = args.sliding(2).collect {
-      case Array(key, value) if key.startsWith("--") => key.drop(2) -> value
-    }.toMap
+    if (args.contains("--sync-current-state")) {
+      val config = CurrentStateConfig.fromEnv()
+      val result = new SqlServerCurrentStateSync(config).sync()
+      println(s"Current-state sync status: ${result.status}")
+      println(s"Upserts: ${result.upserts}")
+      println(s"Deletes: ${result.deletes}")
+      println(s"Ignored older/replayed events: ${result.ignoredOlderEvents}")
+      result.details.foreach(println)
+      if (result.status == "FAILED") sys.exit(1)
+      return
+    }
 
+    val options = args.sliding(2).collect {
+      case Array(key, value) if key.startsWith("--") && !value.startsWith("--") => key.drop(2) -> value
+    }.toMap
     val manifestUri = options.getOrElse("manifest", {
-      System.err.println("Usage: sbt run -- --manifest <file://...|s3://bucket/key>")
+      System.err.println("Usage: sbt run -- --manifest <file://...|s3://bucket/key> OR sbt run -- --sync-current-state")
       sys.exit(2)
     })
 
