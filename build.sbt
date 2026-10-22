@@ -10,6 +10,7 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.3",
       "software.amazon.awssdk" % "s3" % "2.30.31",
       "net.snowflake" % "snowflake-jdbc" % "3.24.2",
+      "com.microsoft.sqlserver" % "mssql-jdbc" % "12.8.1.jre11",
       "org.slf4j" % "slf4j-simple" % "2.0.16",
       "org.scalatest" %% "scalatest" % "3.2.19" % Test
     ),
