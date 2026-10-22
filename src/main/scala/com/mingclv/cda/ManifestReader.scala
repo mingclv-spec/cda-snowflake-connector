@@ -35,10 +35,12 @@ final class ManifestReader(s3: S3Client = S3Client.create()) {
     val key = Option(uri.getPath).getOrElse("").stripPrefix("/")
     require(bucket != null && bucket.nonEmpty, "S3 URI must include a bucket")
     require(key.nonEmpty, "S3 URI must include an object key")
-    s3.getObject(
-      GetObjectRequest.builder().bucket(bucket).key(key).build(),
-      ResponseTransformer.toInputStream[software.amazon.awssdk.services.s3.model.GetObjectResponse]()
-    )
+    val response: software.amazon.awssdk.core.ResponseInputStream[software.amazon.awssdk.services.s3.model.GetObjectResponse] =
+      s3.getObject(
+        GetObjectRequest.builder().bucket(bucket).key(key).build(),
+        ResponseTransformer.toInputStream[software.amazon.awssdk.services.s3.model.GetObjectResponse]()
+      )
+    response
   }
 
   private def parse(input: InputStream): CdaManifest = {
