@@ -1,6 +1,6 @@
 package com.mingclv.cda
 
-import java.sql.{Connection, DriverManager, ResultSet, Types}
+import java.sql.{Connection, DriverManager, ResultSet, ResultSetMetaData, Types}
 import java.util.Properties
 import scala.collection.mutable.ArrayBuffer
 
@@ -45,7 +45,7 @@ object CurrentStateConfig {
       dryRun = optional("DRY_RUN").exists(_.equalsIgnoreCase("true"))
     )
     require(cfg.snowflakeSourceTable.matches(Identifier), "SNOWFLAKE_CDC_SOURCE_TABLE must be a qualified SQL identifier")
-    require(cfg.sqlServerTargetTable.matches(Identifier), "SQLSERVER_CURRENT_TABLE must be a qualified SQL identifier")
+    require(cfg.sqlServerTargetTable.split("\\.").length <= 2 && cfg.sqlServerTargetTable.matches(Identifier), "SQLSERVER_CURRENT_TABLE must be table or schema.table")
     require(cfg.primaryKeyColumns.nonEmpty && cfg.primaryKeyColumns.forall(_.matches(Column)),
       "CDA_PRIMARY_KEY_COLUMNS must be a comma-separated list of simple column names")
     require(cfg.sequenceColumn.matches(Column) && cfg.operationColumn.matches(Column),
@@ -102,7 +102,7 @@ final class SqlServerCurrentStateSync(config: CurrentStateConfig) {
               md.getPrecision(i), md.getScale(i), md.isNullable(i) != ResultSetMetaData.columnNoNulls)
           }
           val byName = columns.map(c => c.name.toLowerCase -> c).toMap
-          val business = businessColumns.map(byName(_ .toLowerCase))
+          val business = businessColumns.map(name => byName(name.toLowerCase))
           val keyInfos = keys.map(k => byName(k.toLowerCase))
           val target = config.sqlServerTargetTable
           val state = stateTableName(target)
@@ -192,7 +192,7 @@ object CurrentStateSql {
       if (t == "DATE") "DATE" else "DATETIME2"
     } else if (t == "BOOLEAN" || t == "BOOL") "BIT"
     else if (t == "BINARY") "VARBINARY(MAX)"
-    else if (t == "NUMBER" || t == "DECIMAL" || t == "NUMERIC") {
+    else if (t == "NUMBER" || t == "FIXED" || t == "DECIMAL" || t == "NUMERIC") {
       val p = math.max(1, math.min(38, c.precision))
       val s = math.max(0, math.min(p, c.scale))
       s"DECIMAL($p,$s)"
