@@ -26,6 +26,7 @@ object Main {
       println(s"Files submitted: ${result.filesSubmitted}")
       println(s"Files skipped: ${result.filesSkipped}")
       result.details.foreach(println)
+      if (result.status == "FAILED") sys.exit(1)
     } finally s3.close()
   }
 }
