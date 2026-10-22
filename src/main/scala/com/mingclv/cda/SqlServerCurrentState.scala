@@ -225,7 +225,7 @@ object CurrentStateSql {
 
   def compareSequence(a: String, b: String): Int = a.compareTo(b)
 
-  private def execute(c: Connection, sql: String): Unit = {
+  def execute(c: Connection, sql: String): Unit = {
     val s = c.createStatement()
     try s.execute(sql) finally s.close()
   }
