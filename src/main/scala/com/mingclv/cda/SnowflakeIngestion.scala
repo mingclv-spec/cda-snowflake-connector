@@ -143,9 +143,10 @@ final class SnowflakeCopyIngestion(config: SnowflakeConfig) extends SnowflakeIng
           finally rs.close()
         } finally statement.close()
       }
-      val loaded = results.count(_.toUpperCase.contains("LOADED"))
-      val skipped = results.size - loaded
-      IngestionResult(manifest.manifestId, results.size, skipped, "COMPLETED", results)
+      val normalized = results.map(_.toUpperCase)
+      val skipped = normalized.count(_.contains("STATUS=LOAD_SKIPPED"))
+      val failed = normalized.exists(s => s.contains("STATUS=LOAD_FAILED") || s.contains("STATUS=PARTIALLY_LOADED"))
+      IngestionResult(manifest.manifestId, results.size, skipped, if (failed) "FAILED" else "COMPLETED", results)
     } finally connection.close()
   }
 
