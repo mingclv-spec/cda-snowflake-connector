@@ -1,0 +1,12 @@
+target/
+project/target/
+project/project/
+.bsp/
+.metals/
+.idea/
+.vscode/
+.env
+*.pem
+*.p8
+secrets/
+logs/
