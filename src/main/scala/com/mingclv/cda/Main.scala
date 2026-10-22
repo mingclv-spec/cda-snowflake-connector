@@ -4,22 +4,28 @@ import software.amazon.awssdk.services.s3.S3Client
 
 object Main {
   def main(args: Array[String]): Unit = {
-    val manifestArg = args.sliding(2).collectFirst {
-      case Array("--manifest", value) => value
-    }.getOrElse {
+    val options = args.sliding(2).collect {
+      case Array(key, value) if key.startsWith("--") => key.drop(2) -> value
+    }.toMap
+
+    val manifestUri = options.getOrElse("manifest", {
       System.err.println("Usage: sbt run -- --manifest <file://...|s3://bucket/key>")
       sys.exit(2)
-    }
+    })
 
     val s3 = S3Client.create()
     try {
-      val manifest = new ManifestReader(s3).read(manifestArg)
+      val manifest = new ManifestReader(s3).read(manifestUri)
       println(s"Manifest ID: ${manifest.manifestId.getOrElse("(not provided)")}")
       println(s"Parquet files discovered: ${manifest.files.size}")
       manifest.files.foreach(f => println(s"  ${f.path}"))
-      // Intentionally not marked as loaded. Wire a real adapter after agreeing
-      // on the Snowflake stage, target schema and load semantics.
-      new NotConfiguredSnowflakeIngestion().load(manifest)
+
+      val config = SnowflakeConfig.fromEnv()
+      val result = new SnowflakeCopyIngestion(config).load(manifest)
+      println(s"Load status: ${result.status}")
+      println(s"Files submitted: ${result.filesSubmitted}")
+      println(s"Files skipped: ${result.filesSkipped}")
+      result.details.foreach(println)
     } finally s3.close()
   }
 }
