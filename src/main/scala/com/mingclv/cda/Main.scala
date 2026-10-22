@@ -15,7 +15,7 @@ object Main {
 
     val s3 = S3Client.create()
     try {
-      val manifest = new ManifestReader(s3).read(manifestUri)
+      val manifest = new ManifestReader(Some(s3)).read(manifestUri)
       println(s"Manifest ID: ${manifest.manifestId.getOrElse("(not provided)")}")
       println(s"Parquet files discovered: ${manifest.files.size}")
       manifest.files.foreach(f => println(s"  ${f.path}"))
