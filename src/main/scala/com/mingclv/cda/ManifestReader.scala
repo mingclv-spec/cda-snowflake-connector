@@ -14,7 +14,7 @@ import scala.collection.JavaConverters._
  * Reads a manifest from file:// or s3://.
  * NOTE: Adapt the field mapping to the exact manifest emitted by your CDA version.
  */
-final class ManifestReader(s3: S3Client = S3Client.create()) {
+final class ManifestReader(s3: Option[S3Client] = None) {
   private val mapper = new ObjectMapper().registerModule(DefaultScalaModule)
 
   def read(uriText: String): CdaManifest = {
@@ -35,8 +35,9 @@ final class ManifestReader(s3: S3Client = S3Client.create()) {
     val key = Option(uri.getPath).getOrElse("").stripPrefix("/")
     require(bucket != null && bucket.nonEmpty, "S3 URI must include a bucket")
     require(key.nonEmpty, "S3 URI must include an object key")
+    val client = s3.getOrElse(throw new IllegalStateException("An S3Client must be supplied to read an s3:// manifest"))
     val response: software.amazon.awssdk.core.ResponseInputStream[software.amazon.awssdk.services.s3.model.GetObjectResponse] =
-      s3.getObject(
+      client.getObject(
         GetObjectRequest.builder().bucket(bucket).key(key).build(),
         ResponseTransformer.toInputStream[software.amazon.awssdk.services.s3.model.GetObjectResponse]()
       )
