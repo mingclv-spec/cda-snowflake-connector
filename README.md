@@ -114,3 +114,27 @@ For a manifest entry `s3://my-cda-bucket/exports/table/part-0001.parquet`, the s
 - `DRY_RUN=true` is intended for statement review and does not verify connectivity, stage access, SQL validity or target schema.
 - Username/password is supported as a starter. Prefer key-pair authentication or a supported secrets integration for production.
 - This is not the Snowpipe Streaming SDK; it uses Snowflake SQL `COPY INTO` to load existing Parquet objects.
+
+## SQL Server current-state CDC sync
+
+The connector can apply CDC events already loaded in Snowflake to a SQL Server current-state table. Run it separately after the Snowflake load:
+
+```bash
+export SNOWFLAKE_CDC_SOURCE_TABLE='RAW.CDA.POLICY_CDC'
+export SQLSERVER_JDBC_URL='jdbc:sqlserver://sqlserver-host:1433;databaseName=icare;encrypt=true;trustServerCertificate=false'
+export SQLSERVER_USER='cda_sync'
+export SQLSERVER_PASSWORD='set-this-through-your-secret-manager'
+export SQLSERVER_CURRENT_TABLE='dbo.POLICY_CURRENT'
+export CDA_PRIMARY_KEY_COLUMNS='ID'
+export CDA_SEQUENCE_COLUMN='gwcbi___seqval'
+export CDA_OPERATION_COLUMN='gwcbi___operation'
+export CDA_DELETE_OPERATION_VALUE='1'
+export DRY_RUN='true'
+sbt run -- --sync-current-state
+```
+
+Required settings are `SNOWFLAKE_JDBC_URL`, `SNOWFLAKE_USER`, `SNOWFLAKE_PASSWORD`, `SNOWFLAKE_CDC_SOURCE_TABLE`, `SQLSERVER_JDBC_URL`, `SQLSERVER_USER`, `SQLSERVER_PASSWORD`, `SQLSERVER_CURRENT_TABLE`, and `CDA_PRIMARY_KEY_COLUMNS`. Sequence/operation column names and delete value can be overridden.
+
+The source table must expose one row per CDC event, business columns, the configured key column(s), a sequence column, and an operation column. The implementation creates the SQL Server target and a companion `<target>_CDA_STATE` table when absent. The state table tracks each key's latest sequence and delete tombstone, making replayed events idempotent. Delete operations remove the row from the current table but retain the tombstone in the state table.
+
+**Important assumptions to verify against your CDA export:** the source is a unified CDC event table; the operation column uses the configured delete value (default `1`); and sequence values are fixed-width strings whose lexical ordering matches CDA event ordering. If CDA stores deletes in a separate `_deletion` table, create a Snowflake view that normalizes change and deletion events into this contract before syncing. The connector does not yet infer primary keys or CDA schema automatically. Use a non-production SQL Server database first; live Snowflake/SQL Server integration is not exercised by unit CI.
